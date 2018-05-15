@@ -8,7 +8,7 @@ import "strings"
 type MetaData struct {
 	mapping map[string]interface{}
 	types   map[string]tomlType
-	keys    []Key
+	keys    []KeyInfo
 	decoded map[string]bool
 	context Key // Used only during decoding.
 }
@@ -55,6 +55,11 @@ func (md *MetaData) Type(key ...string) string {
 // to get values of this type.
 type Key []string
 
+type KeyInfo struct {
+	Key  Key
+	Line int
+}
+
 func (k Key) String() string {
 	return strings.Join(k, ".")
 }
@@ -96,6 +101,14 @@ func (k Key) add(piece string) Key {
 //
 // All keys returned are non-empty.
 func (md *MetaData) Keys() []Key {
+	var keys []Key
+	for _, key := range md.keys {
+		keys = append(keys, key.Key)
+	}
+	return keys
+}
+
+func (md *MetaData) KeysInfo() []KeyInfo {
 	return md.keys
 }
 
@@ -111,9 +124,18 @@ func (md *MetaData) Keys() []Key {
 // In this sense, the Undecoded keys correspond to keys in the TOML document
 // that do not have a concrete type in your representation.
 func (md *MetaData) Undecoded() []Key {
-	undecoded := make([]Key, 0, len(md.keys))
+	var list []Key
+	undecoded := md.UndecodedInfo()
+	for _, x := range undecoded {
+		list = append(list, x.Key)
+	}
+	return list
+}
+
+func (md *MetaData) UndecodedInfo() []KeyInfo {
+	undecoded := make([]KeyInfo, 0, len(md.keys))
 	for _, key := range md.keys {
-		if !md.decoded[key.String()] {
+		if !md.decoded[key.Key.String()] {
 			undecoded = append(undecoded, key)
 		}
 	}

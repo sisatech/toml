@@ -1,6 +1,7 @@
 package toml
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -282,7 +283,7 @@ func (md *MetaData) unifyMap(mapping interface{}, rv reflect.Value) error {
 		if tmap == nil {
 			return nil
 		}
-		return badtype("map", mapping)
+		return md.badtype("map", mapping)
 	}
 	if rv.IsNil() {
 		rv.Set(reflect.MakeMap(rv.Type()))
@@ -310,7 +311,7 @@ func (md *MetaData) unifyArray(data interface{}, rv reflect.Value) error {
 		if !datav.IsValid() {
 			return nil
 		}
-		return badtype("slice", data)
+		return md.badtype("slice", data)
 	}
 	sliceLen := datav.Len()
 	if sliceLen != rv.Len() {
@@ -326,7 +327,7 @@ func (md *MetaData) unifySlice(data interface{}, rv reflect.Value) error {
 		if !datav.IsValid() {
 			return nil
 		}
-		return badtype("slice", data)
+		return md.badtype("slice", data)
 	}
 	n := datav.Len()
 	if rv.IsNil() || rv.Cap() < n {
@@ -353,7 +354,7 @@ func (md *MetaData) unifyDatetime(data interface{}, rv reflect.Value) error {
 		rv.Set(reflect.ValueOf(data))
 		return nil
 	}
-	return badtype("time.Time", data)
+	return md.badtype("time.Time", data)
 }
 
 func (md *MetaData) unifyString(data interface{}, rv reflect.Value) error {
@@ -361,7 +362,7 @@ func (md *MetaData) unifyString(data interface{}, rv reflect.Value) error {
 		rv.SetString(s)
 		return nil
 	}
-	return badtype("string", data)
+	return md.badtype("string", data)
 }
 
 func (md *MetaData) unifyFloat64(data interface{}, rv reflect.Value) error {
@@ -376,7 +377,7 @@ func (md *MetaData) unifyFloat64(data interface{}, rv reflect.Value) error {
 		}
 		return nil
 	}
-	return badtype("float", data)
+	return md.badtype("float", data)
 }
 
 func (md *MetaData) unifyInt(data interface{}, rv reflect.Value) error {
@@ -423,7 +424,7 @@ func (md *MetaData) unifyInt(data interface{}, rv reflect.Value) error {
 		}
 		return nil
 	}
-	return badtype("integer", data)
+	return md.badtype("integer", data)
 }
 
 func (md *MetaData) unifyBool(data interface{}, rv reflect.Value) error {
@@ -431,7 +432,7 @@ func (md *MetaData) unifyBool(data interface{}, rv reflect.Value) error {
 		rv.SetBool(b)
 		return nil
 	}
-	return badtype("boolean", data)
+	return md.badtype("boolean", data)
 }
 
 func (md *MetaData) unifyAnything(data interface{}, rv reflect.Value) error {
@@ -459,7 +460,7 @@ func (md *MetaData) unifyText(data interface{}, v TextUnmarshaler) error {
 	case float64:
 		s = fmt.Sprintf("%f", sdata)
 	default:
-		return badtype("primitive (string-like)", data)
+		return md.badtype("primitive (string-like)", data)
 	}
 	if err := v.UnmarshalText([]byte(s)); err != nil {
 		return err
@@ -505,5 +506,26 @@ func isUnifiable(rv reflect.Value) bool {
 }
 
 func badtype(expected string, data interface{}) error {
+	return e("cannot load TOML value of type %T into a Go %s", data, expected)
+}
+
+func (md *MetaData) badtype(expected string, data interface{}) error {
+	// name & shame key
+	var line int
+	var found bool
+	for _, key := range md.keys {
+		if key.Key.String() == md.context.String() {
+			line = key.Line
+			found = true
+			break
+		}
+	}
+
+	if found {
+		msg := fmt.Sprintf("Near line %d: %s",
+			line, fmt.Sprintf("cannot load TOML value of type %T into a Go %s", data, expected))
+		return errors.New(msg)
+	}
+
 	return e("cannot load TOML value of type %T into a Go %s", data, expected)
 }

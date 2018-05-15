@@ -46,6 +46,8 @@ type Encoder struct {
 	// A single indentation level. By default it is two spaces.
 	Indent string
 
+	SmartMultiline bool
+
 	// hasWritten is whether we have written any output to w yet.
 	hasWritten bool
 	w          *bufio.Writer
@@ -205,7 +207,12 @@ func floatAddDecimal(fstr string) string {
 }
 
 func (enc *Encoder) writeQuoted(s string) {
-	enc.wf("\"%s\"", quotedReplacer.Replace(s))
+	replaced := quotedReplacer.Replace(s)
+	if replaced == s {
+		enc.wf("\"%s\"", s)
+	} else {
+		enc.wf("\"\"\"%s\"\"\"", s)
+	}
 }
 
 func (enc *Encoder) eArrayOrSliceElement(rv reflect.Value) {

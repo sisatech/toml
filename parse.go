@@ -15,7 +15,7 @@ type parser struct {
 	lx      *lexer
 
 	// A list of keys in the order that they appear in the TOML data.
-	ordered []Key
+	ordered []KeyInfo
 
 	// the full key for the current hash in scope
 	context Key
@@ -51,7 +51,7 @@ func parse(data string) (p *parser, err error) {
 		mapping:   make(map[string]interface{}),
 		types:     make(map[string]tomlType),
 		lx:        lex(data),
-		ordered:   make([]Key, 0),
+		ordered:   make([]KeyInfo, 0),
 		implicits: make(map[string]bool),
 	}
 	for {
@@ -112,7 +112,7 @@ func (p *parser) topLevel(item item) {
 
 		p.establishContext(key, false)
 		p.setType("", tomlHash)
-		p.ordered = append(p.ordered, key)
+		p.ordered = append(p.ordered, KeyInfo{key, kg.line})
 	case itemArrayTableStart:
 		kg := p.next()
 		p.approxLine = kg.line
@@ -125,7 +125,7 @@ func (p *parser) topLevel(item item) {
 
 		p.establishContext(key, true)
 		p.setType("", tomlArrayHash)
-		p.ordered = append(p.ordered, key)
+		p.ordered = append(p.ordered, KeyInfo{key, kg.line})
 	case itemKeyStart:
 		kname := p.next()
 		p.approxLine = kname.line
@@ -134,7 +134,7 @@ func (p *parser) topLevel(item item) {
 		val, typ := p.value(p.next())
 		p.setValue(p.currentKey, val)
 		p.setType(p.currentKey, typ)
-		p.ordered = append(p.ordered, p.context.add(p.currentKey))
+		p.ordered = append(p.ordered, KeyInfo{p.context.add(p.currentKey), p.approxLine})
 		p.currentKey = ""
 	default:
 		p.bug("Unexpected type at top level: %s", item.typ)
@@ -298,7 +298,7 @@ func (p *parser) value(it item) (interface{}, tomlType) {
 			val, typ := p.value(p.next())
 			// make sure we keep metadata up to date
 			p.setType(kname, typ)
-			p.ordered = append(p.ordered, p.context.add(p.currentKey))
+			p.ordered = append(p.ordered, KeyInfo{p.context.add(p.currentKey), p.approxLine})
 			hash[kname] = val
 		}
 		p.context = outerContext
