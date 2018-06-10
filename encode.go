@@ -2,6 +2,7 @@ package toml
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -47,6 +48,8 @@ type Encoder struct {
 	Indent string
 
 	SmartMultiline bool
+
+	OmitEmpty bool
 
 	// hasWritten is whether we have written any output to w yet.
 	hasWritten bool
@@ -375,6 +378,14 @@ func (enc *Encoder) eStruct(key Key, rv reflect.Value) {
 				continue
 			}
 
+			x := sf.MethodByName("String")
+			if x.IsValid() {
+				ret := x.Call(nil)
+				if ret[0].String() == "0001-01-01 00:00:00 +0000 UTC" {
+					continue
+				}
+			}
+
 			enc.encode(key.add(keyName), sf)
 		}
 	}
@@ -508,6 +519,14 @@ func isEmpty(rv reflect.Value) bool {
 		return rv.Len() == 0
 	case reflect.Bool:
 		return !rv.Bool()
+	case reflect.Struct:
+		e := new(Encoder)
+		buf := new(bytes.Buffer)
+		e.w = bufio.NewWriter(buf)
+		e.encode(Key([]string{"x"}), rv)
+		e.w.Flush()
+		s := string(buf.Bytes())
+		return s == "[x]\n"
 	}
 	return false
 }
