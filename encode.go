@@ -49,8 +49,6 @@ type Encoder struct {
 
 	SmartMultiline bool
 
-	OmitEmpty bool
-
 	// hasWritten is whether we have written any output to w yet.
 	hasWritten bool
 	w          *bufio.Writer
