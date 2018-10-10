@@ -500,6 +500,7 @@ func getOptions(tag reflect.StructTag) tagOptions {
 }
 
 func isZero(rv reflect.Value) bool {
+
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return rv.Int() == 0
@@ -508,6 +509,16 @@ func isZero(rv reflect.Value) bool {
 	case reflect.Float32, reflect.Float64:
 		return rv.Float() == 0.0
 	}
+
+	switch v := rv.Interface().(type) {
+	case TextMarshaler:
+		if s, err := v.MarshalText(); err != nil {
+			encPanic(err)
+		} else {
+			return string(s) == ""
+		}
+	}
+
 	return false
 }
 
